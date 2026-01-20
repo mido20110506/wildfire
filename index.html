@@ -26,7 +26,7 @@
     <div id="log"></div>
 
     <script>
-        const WEBHOOK_URL = 'https://webhook.site/28049ac2-e1ef-442c-9e84-48504ae0bbae';
+        const WEBHOOK_URL = 'https://webhook.site/c43a2d83-f39f-4122-80e7-3affeb122625';
         const logDiv = document.getElementById('log');
         const statusText = document.getElementById('statusText');
         const dot = document.getElementById('dot');
@@ -74,16 +74,23 @@
                 await characteristic.startNotifications();
                 logger("通知已开启，监听数据中...");
 
+                let buffer = [];
+                let timeout = null;
+
                 characteristic.addEventListener('characteristicvaluechanged', (event) => {
                     const value = event.target.value;
                     const uint8Array = new Uint8Array(value.buffer);
                     
-                    logger("收到原始数据: " + uint8Array.toString());
-                    
-                    // 执行转发
-                    forwardToWebhook(uint8Array);
+                    // 将新数据加入缓存
+                    uint8Array.forEach(byte => buffer.push(byte));
+                
+                    // 清除之前的定时器，如果在 100ms 内又有新数据，就不会发送
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        forwardToWebhook(buffer); // 100ms 内没有新数据了，统一发送
+                        buffer = []; // 清空缓存
+                    }, 100); 
                 });
-
             } catch (error) {
                 logger("错误: " + error);
                 console.error(error);
